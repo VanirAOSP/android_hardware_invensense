@@ -123,6 +123,7 @@ private:
     hfunc_t mHandlers[numSensors];
     bool mForceSleep;
     long int mOldEnabledMask;
+    float mAccelCalib[3];
     android::KeyedVector<int, int> mIrqFds;
 
     /* added for dynamic get sensor list              */

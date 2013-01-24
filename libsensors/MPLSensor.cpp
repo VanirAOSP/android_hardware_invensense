@@ -215,6 +215,17 @@ MPLSensor::MPLSensor() :
         //ALOGD("MPLSensor falling back to timerirq for accel data");
     }
 
+    int calib_fd = open("/data/accelcalib", O_RDONLY);
+    if (calib_fd == -1) {
+        //ALOGV("could not open accel calibration file, using default values");
+        memset(mAccelCalib, 0, sizeof(mAccelCalib));
+    } else {
+        if (read(calib_fd, mAccelCalib, sizeof(mAccelCalib)) == -1)
+            ALOGE("could not read accel calibration file");
+        if (close(calib_fd) == -1)
+            ALOGE("could not close accel calibration file");
+    }
+
     memset(mPendingEvents, 0, sizeof(mPendingEvents));
 
     mPendingEvents[RotationVector].version = sizeof(sensors_event_t);
@@ -621,9 +632,9 @@ void MPLSensor::accelHandler(sensors_event_t* s, uint32_t* pending_mask,
     inv_error_t res;
     res = inv_get_float_array(INV_ACCELS, s->acceleration.v);
     //res = inv_get_accel_float(s->acceleration.v);
-    s->acceleration.v[0] = s->acceleration.v[0] * 9.81;
-    s->acceleration.v[1] = s->acceleration.v[1] * 9.81;
-    s->acceleration.v[2] = s->acceleration.v[2] * 9.81;
+    s->acceleration.v[0] = s->acceleration.v[0] * 9.81 + mAccelCalib[0];
+    s->acceleration.v[1] = s->acceleration.v[1] * 9.81 + mAccelCalib[1];
+    s->acceleration.v[2] = s->acceleration.v[2] * 9.81 + mAccelCalib[2];
     //ALOGV_IF(EXTRA_VERBOSE, "accel data: %f %f %f", s->acceleration.v[0], s->acceleration.v[1], s->acceleration.v[2]);
     s->acceleration.status = SENSOR_STATUS_ACCURACY_HIGH;
     if (res == INV_SUCCESS)
