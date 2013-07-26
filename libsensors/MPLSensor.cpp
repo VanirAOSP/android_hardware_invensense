@@ -142,7 +142,7 @@ void setCallbackObject(MPLSensor* gbpt)
 
 MPLSensor::MPLSensor() :
     SensorBase(NULL, NULL),
-            mMpuAccuracy(0), mNewData(0),
+            mNewData(0),
             mDmpStarted(false),
             mMasterSensorMask(INV_ALL_SENSORS),
             mLocalSensorMask(ALL_MPL_SENSORS_NP), mPollTime(-1),
@@ -231,30 +231,22 @@ MPLSensor::MPLSensor() :
     mPendingEvents[RotationVector].version = sizeof(sensors_event_t);
     mPendingEvents[RotationVector].sensor = ID_RV;
     mPendingEvents[RotationVector].type = SENSOR_TYPE_ROTATION_VECTOR;
-    mPendingEvents[RotationVector].acceleration.status
-            = SENSOR_STATUS_ACCURACY_HIGH;
 
     mPendingEvents[LinearAccel].version = sizeof(sensors_event_t);
     mPendingEvents[LinearAccel].sensor = ID_LA;
     mPendingEvents[LinearAccel].type = SENSOR_TYPE_LINEAR_ACCELERATION;
-    mPendingEvents[LinearAccel].acceleration.status
-            = SENSOR_STATUS_ACCURACY_HIGH;
 
     mPendingEvents[Gravity].version = sizeof(sensors_event_t);
     mPendingEvents[Gravity].sensor = ID_GR;
     mPendingEvents[Gravity].type = SENSOR_TYPE_GRAVITY;
-    mPendingEvents[Gravity].acceleration.status = SENSOR_STATUS_ACCURACY_HIGH;
 
     mPendingEvents[Gyro].version = sizeof(sensors_event_t);
     mPendingEvents[Gyro].sensor = ID_GY;
     mPendingEvents[Gyro].type = SENSOR_TYPE_GYROSCOPE;
-    mPendingEvents[Gyro].gyro.status = SENSOR_STATUS_ACCURACY_HIGH;
 
     mPendingEvents[Accelerometer].version = sizeof(sensors_event_t);
     mPendingEvents[Accelerometer].sensor = ID_A;
     mPendingEvents[Accelerometer].type = SENSOR_TYPE_ACCELEROMETER;
-    mPendingEvents[Accelerometer].acceleration.status
-            = SENSOR_STATUS_ACCURACY_HIGH;
 
     mPendingEvents[MagneticField].version = sizeof(sensors_event_t);
     mPendingEvents[MagneticField].sensor = ID_M;
@@ -519,7 +511,6 @@ void MPLSensor::initMPL()
         ALOGE("Fatal error: inv_set_fifo_rate returned %d\n", result);
     }
 
-    mMpuAccuracy = SENSOR_STATUS_ACCURACY_MEDIUM;
     setupCallbacks();
 
 }
@@ -589,7 +580,6 @@ void MPLSensor::cbOnMotion(uint16_t val)
     FUNC_LOG;
     //after the first no motion, the gyro should be calibrated well
     if (val == 2) {
-        mMpuAccuracy = SENSOR_STATUS_ACCURACY_HIGH;
         if ((inv_get_dl_config()->requested_sensors) & INV_THREE_AXIS_GYRO) {
             //if gyros are on and we got a no motion, set a flag
             // indicating that the cal file can be written.
@@ -620,7 +610,6 @@ void MPLSensor::gyroHandler(sensors_event_t* s, uint32_t* pending_mask,
     s->gyro.v[0] = s->gyro.v[0] * M_PI / 180.0;
     s->gyro.v[1] = s->gyro.v[1] * M_PI / 180.0;
     s->gyro.v[2] = s->gyro.v[2] * M_PI / 180.0;
-    s->gyro.status = mMpuAccuracy;
     if (res == INV_SUCCESS)
         *pending_mask |= (1 << index);
 }
@@ -636,7 +625,6 @@ void MPLSensor::accelHandler(sensors_event_t* s, uint32_t* pending_mask,
     s->acceleration.v[1] = s->acceleration.v[1] * 9.81 + mAccelCalib[1];
     s->acceleration.v[2] = s->acceleration.v[2] * 9.81 + mAccelCalib[2];
     //ALOGV_IF(EXTRA_VERBOSE, "accel data: %f %f %f", s->acceleration.v[0], s->acceleration.v[1], s->acceleration.v[2]);
-    s->acceleration.status = SENSOR_STATUS_ACCURACY_HIGH;
     if (res == INV_SUCCESS)
         *pending_mask |= (1 << index);
 }
@@ -718,9 +706,6 @@ void MPLSensor::rvHandler(sensors_event_t* s, uint32_t* pending_mask,
     s->gyro.v[1] = quat[2];
     s->gyro.v[2] = quat[3];
 
-    s->gyro.status
-            = ((mMpuAccuracy < estimateCompassAccuracy()) ? mMpuAccuracy
-                                                            : estimateCompassAccuracy());
 }
 
 void MPLSensor::laHandler(sensors_event_t* s, uint32_t* pending_mask,
@@ -732,7 +717,6 @@ void MPLSensor::laHandler(sensors_event_t* s, uint32_t* pending_mask,
     s->gyro.v[0] *= 9.81;
     s->gyro.v[1] *= 9.81;
     s->gyro.v[2] *= 9.81;
-    s->gyro.status = mMpuAccuracy;
     if (res == INV_SUCCESS)
         *pending_mask |= (1 << index);
 }
@@ -746,7 +730,6 @@ void MPLSensor::gravHandler(sensors_event_t* s, uint32_t* pending_mask,
     s->gyro.v[0] *= 9.81;
     s->gyro.v[1] *= 9.81;
     s->gyro.v[2] *= 9.81;
-    s->gyro.status = mMpuAccuracy;
     if (res == INV_SUCCESS)
         *pending_mask |= (1 << index);
 }
@@ -1375,4 +1358,3 @@ void MPLSensor::fillLinearAccel(struct sensor_t *list)
     list[Gravity].maxRange = list[Accelerometer].maxRange;
     return;
 }
-
